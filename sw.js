@@ -1,5 +1,5 @@
 const CACHE = 'xiaodaka-v1';
-const ASSETS = ['/','/index.html','/manifest.json'];
+const ASSETS = ['/xiaodaka/','/xiaodaka/index.html','/xiaodaka/manifest.json'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
