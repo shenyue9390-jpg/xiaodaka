@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f0f0f">
+<title>小打卡 - 极简习惯追踪</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b0b0f;
+  --card:#16161e;
+  --card2:#1c1c26;
+  --text:#e8e8ec;
+  --sub:#7a7a85;
+  --accent:#ff6b35;
+  --accent2:#00d4aa;
+  --accent3:#6c5ce7;
+  --danger:#ff4757;
+  --border:rgba(255,255,255,0.06);
+  --radius:18px;
+  --shadow:0 2px 16px rgba(0,0,0,0.4);
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','PingFang SC','Helvetica Neue',sans-serif;
+  background:var(--bg);color:var(--text);
+  min-height:100vh;min-height:-webkit-fill-available;
+  display:flex;flex-direction:column;
+  user-select:none;-webkit-user-select:none;
+  overflow-x:hidden;
+}
+/* Status Bar */
+.status-bar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:13px;color:var(--sub)}
+.status-bar .time{font-weight:600;color:var(--text)}
+/* Header */
+.header{padding:8px 20px 16px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:28px;font-weight:800;letter-spacing:-0.5px;background:linear-gradient(135deg,var(--accent),var(--accent3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .date{font-size:14px;color:var(--sub)}
+/* Main Content */
+.main{flex:1;padding:0 16px;overflow-y:auto;display:none}
+.main.active{display:block}
+/* Today Progress Ring */
+.progress-section{display:flex;align-items:center;gap:16px;padding:20px;background:var(--card);border-radius:var(--radius);margin-bottom:20px;box-shadow:var(--shadow)}
+.progress-ring{position:relative;width:72px;height:72px;flex-shrink:0}
+.progress-ring svg{transform:rotate(-90deg)}
+.progress-ring .bg{fill:none;stroke:rgba(255,255,255,0.1);stroke-width:6}
+.progress-ring .fg{fill:none;stroke:var(--accent2);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1)}
+.progress-ring .pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;font-weight:800;color:var(--accent2)}
+.progress-info{flex:1}
+.progress-info .title{font-size:15px;font-weight:700;margin-bottom:4px}
+.progress-info .subtitle{font-size:13px;color:var(--sub)}
+.progress-info .streak{display:inline-flex;align-items:center;gap:4px;margin-top:6px;background:rgba(255,107,53,0.12);color:var(--accent);padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
+/* Habit Card */
+.habit-card{display:flex;align-items:center;gap:14px;padding:16px 18px;background:var(--card2);border-radius:var(--radius);margin-bottom:10px;transition:all 0.25s;border:1.5px solid transparent;position:relative;overflow:hidden}
+.habit-card:active{transform:scale(0.98)}
+.habit-card.done{border-color:rgba(0,212,170,0.3);background:rgba(0,212,170,0.04)}
+.habit-card .check{width:44px;height:44px;border-radius:50%;border:2.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.3s;font-size:20px;color:transparent}
+.habit-card.done .check{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.habit-card .info{flex:1;min-width:0}
+.habit-card .name{font-size:16px;font-weight:600;margin-bottom:2px}
+.habit-card .meta{font-size:12px;color:var(--sub)}
+.habit-card .right{display:flex;align-items:center;gap:8px}
+.habit-card .day-streak{font-size:12px;color:var(--accent);font-weight:700;white-space:nowrap}
+.habit-card .trash{width:32px;height:32px;border-radius:50%;border:none;background:transparent;color:var(--sub);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:all 0.2s}
+.habit-card:hover .trash,.habit-card:active .trash{opacity:1}
+.habit-card .trash:active{color:var(--danger)}
+/* Empty State */
+.empty-state{text-align:center;padding:60px 20px}
+.empty-state .icon{font-size:64px;margin-bottom:16px;opacity:0.6}
+.empty-state .msg{font-size:15px;color:var(--sub);line-height:1.6}
+/* FAB */
+.fab{position:fixed;bottom:100px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));border:none;color:#fff;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(108,92,231,0.4);display:flex;align-items:center;justify-content:center;z-index:10;transition:all 0.2s}
+.fab:active{transform:scale(0.92)}
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal-sheet{width:100%;max-width:480px;background:var(--card);border-radius:24px 24px 0 0;padding:12px 20px 36px;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1)}
+.modal-overlay.show .modal-sheet{transform:translateY(0)}
+.modal-handle{width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:0 auto 16px}
+.modal-sheet h3{font-size:20px;font-weight:700;margin-bottom:16px;text-align:center}
+.modal-sheet label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px;font-weight:600}
+.modal-sheet input,.modal-sheet select{width:100%;padding:14px 16px;background:var(--bg);border:1.5px solid var(--border);border-radius:14px;color:var(--text);font-size:16px;margin-bottom:16px;outline:none;transition:border 0.2s}
+.modal-sheet input:focus,.modal-sheet select:focus{border-color:var(--accent3)}
+.modal-sheet .color-pick{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.modal-sheet .color-pick .dot{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all 0.2s;display:flex;align-items:center;justify-content:center;font-size:18px}
+.modal-sheet .color-pick .dot.sel{border-color:var(--text);transform:scale(1.1)}
+.modal-sheet .btn-row{display:flex;gap:12px}
+.modal-sheet .btn{flex:1;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.modal-sheet .btn:active{transform:scale(0.97)}
+.modal-sheet .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent3));color:#fff}
+.modal-sheet .btn-cancel{background:var(--card2);color:var(--sub)}
+/* Bottom Nav */
+.bottom-nav{display:flex;background:var(--card);padding:8px 0 env(safe-area-inset-bottom,20px);border-top:1px solid var(--border);position:sticky;bottom:0}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;cursor:pointer;transition:all 0.2s;color:var(--sub);font-size:11px;font-weight:500;border:none;background:none}
+.nav-item .icon{font-size:22px;transition:all 0.2s}
+.nav-item.active{color:var(--accent2)}
+.nav-item.active .icon{transform:scale(1.15)}
+/* Calendar View */
+.week-header{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:12px;color:var(--sub);margin-bottom:8px;font-weight:600}
+.week-header span:first-child,.week-header span:last-child{color:var(--accent)}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.calendar-grid .day{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:default;transition:all 0.2s;position:relative}
+.calendar-grid .day.done{background:var(--accent2);color:#000}
+.calendar-grid .day.miss{color:var(--sub);opacity:0.4}
+.calendar-grid .day.today{border:2px solid var(--accent3);border-radius:10px}
+.calendar-grid .day.future{color:var(--sub);opacity:0.25}
+.calendar-grid .day.other-month{opacity:0}
+.calendar-month-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.calendar-month-header button{background:var(--card2);border:none;color:var(--text);width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer}
+.calendar-month-header .month-label{font-size:17px;font-weight:700}
+/* Stats View */
+.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:18px;text-align:center}
+.stat-card .val{font-size:32px;font-weight:800;margin-bottom:4px}
+.stat-card .lbl{font-size:12px;color:var(--sub)}
+.stat-card:nth-child(1) .val{color:var(--accent2)}
+.stat-card:nth-child(2) .val{color:var(--accent)}
+.stat-card:nth-child(3) .val{color:var(--accent3)}
+.stat-card:nth-child(4) .val{color:#ffd700}
+/* Timer View */
+.timer-section{text-align:center;padding:30px 20px}
+.timer-ring{position:relative;width:200px;height:200px;margin:0 auto 24px}
+.timer-ring svg{transform:rotate(-90deg)}
+.timer-ring .bg{fill:none;stroke:rgba(255,255,255,0.08);stroke-width:8}
+.timer-ring .fg{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 0.5s}
+.timer-ring .time-display{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:44px;font-weight:200;letter-spacing:2px;font-variant-numeric:tabular-nums}
+.timer-ring .time-label{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);font-size:13px;color:var(--sub)}
+.timer-controls{display:flex;gap:14px;justify-content:center;margin-top:8px}
+.timer-controls button{width:54px;height:54px;border-radius:50%;border:none;font-size:22px;cursor:pointer;transition:all 0.2s;color:#fff}
+.timer-controls .btn-play{background:linear-gradient(135deg,var(--accent2),#00b894);width:64px;height:64px;font-size:26px}
+.timer-controls .btn-reset{background:var(--card2);color:var(--sub)}
+.timer-controls button:active{transform:scale(0.9)}
+.timer-presets{display:flex;gap:8px;justify-content:center;margin-top:20px}
+.timer-presets button{padding:8px 20px;border-radius:20px;border:1.5px solid var(--border);background:transparent;color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.timer-presets button.active{border-color:var(--accent);color:var(--accent);background:rgba(255,107,53,0.08)}
+/* Toast */
+.toast{position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-20px);background:var(--accent2);color:#000;padding:12px 24px;border-radius:30px;font-weight:700;font-size:14px;opacity:0;transition:all 0.35s;z-index:200;pointer-events:none;box-shadow:0 4px 20px rgba(0,212,170,0.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.warning{background:var(--danger);color:#fff}
+/* Confetti */
+@keyframes pop{0%{transform:scale(0);opacity:0}50%{transform:scale(1.3);opacity:1}100%{transform:scale(1);opacity:1}}
+.pop-in{animation:pop 0.5s cubic-bezier(0.18,0.89,0.32,1.28)}
+/* Scrollbar */
+::-webkit-scrollbar{display:none}
+/* Responsive */
+@media(min-width:768px){
+  body{max-width:480px;margin:0 auto}
+  .fab{bottom:110px}
+}
+</style>
+</head>
+<body>
+
+<!-- Status Bar -->
+<div class="status-bar">
+  <span class="time" id="timeNow">09:41</span>
+  <span>📶 🔋</span>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <h1>小打卡</h1>
+  <span class="date" id="dateNow"></span>
+</div>
+
+<!-- ===== TODAY VIEW ===== -->
+<div class="main active" id="tab-today">
+  <div class="progress-section" id="progressSection">
+    <div class="progress-ring">
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle class="bg" cx="36" cy="36" r="30"/>
+        <circle class="fg" id="progressCircle" cx="36" cy="36" r="30" stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+      </svg>
+      <div class="pct" id="progressPct">0%</div>
+    </div>
+    <div class="progress-info">
+      <div class="title" id="progressTitle">今天还没打卡</div>
+      <div class="subtitle" id="progressSub"></div>
+      <div class="streak" id="bestStreak">🔥 最长连续 0 天</div>
+    </div>
+  </div>
+
+  <div id="habitList"></div>
+  <div class="empty-state" id="emptyToday" style="display:none">
+    <div class="icon">🎯</div>
+    <div class="msg">还没有习惯<br>点右下角 + 添加第一个吧</div>
+  </div>
+</div>
+
+<!-- ===== CALENDAR VIEW ===== -->
+<div class="main" id="tab-calendar" style="padding-top:8px">
+  <div class="calendar-month-header">
+    <button onclick="prevMonth()">◀</button>
+    <span class="month-label" id="monthLabel"></span>
+    <button onclick="nextMonth()">▶</button>
+  </div>
+  <div class="week-header">
+    <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+  </div>
+  <div class="calendar-grid" id="calendarGrid"></div>
+
+  <div style="margin-top:24px" id="habitFilter">
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="habitFilterBtns"></div>
+  </div>
+</div>
+
+<!-- ===== STATS VIEW ===== -->
+<div class="main" id="tab-stats" style="padding-top:8px">
+  <h3 style="font-size:18px;margin-bottom:16px;font-weight:700">📊 数据统计</h3>
+  <div class="stat-cards">
+    <div class="stat-card"><div class="val" id="statTotal">0</div><div class="lbl">总打卡次数</div></div>
+    <div class="stat-card"><div class="val" id="statStreak">0</div><div class="lbl">🔥 当前连续</div></div>
+    <div class="stat-card"><div class="val" id="statRate">0%</div><div class="lbl">完成率</div></div>
+    <div class="stat-card"><div class="val" id="statBest">0</div><div class="lbl">⭐ 最佳纪录</div></div>
+  </div>
+
+  <div style="background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:12px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px">各习惯完成情况（本月）</div>
+    <div id="habitBreakdown"></div>
+  </div>
+</div>
+
+<!-- ===== TIMER VIEW ===== -->
+<div class="main" id="tab-timer" style="padding-top:8px">
+  <div class="timer-section">
+    <div class="timer-ring">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle class="bg" cx="100" cy="100" r="88"/>
+        <circle class="fg" id="timerCircle" cx="100" cy="100" r="88" stroke-dasharray="553" stroke-dashoffset="0"/>
+      </svg>
+      <div class="time-display" id="timerDisplay">25:00</div>
+      <div class="time-label" id="timerLabel">🍅 专注</div>
+    </div>
+    <div class="timer-controls">
+      <button class="btn-reset" onclick="resetTimer()">⏮</button>
+      <button class="btn-play" id="timerPlayBtn" onclick="toggleTimer()">▶</button>
+      <button class="btn-reset" onclick="skipTimer()">⏭</button>
+    </div>
+    <div class="timer-presets">
+      <button class="active" data-min="25" data-label="🍅 专注" onclick="setPreset(25,'🍅 专注',this)">25分钟</button>
+      <button data-min="15" data-label="☕ 短休" onclick="setPreset(15,'☕ 短休',this)">15分钟</button>
+      <button data-min="45" data-label="💪 深度" onclick="setPreset(45,'💪 深度',this)">45分钟</button>
+      <button data-min="5" data-label="⏰ 快休" onclick="setPreset(5,'⏰ 快休',this)">5分钟</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FAB ===== -->
+<button class="fab" onclick="showAddModal()">+</button>
+
+<!-- ===== ADD/EDIT MODAL ===== -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <h3 id="modalTitle">添加习惯</h3>
+    <label>习惯名称</label>
+    <input id="habitName" type="text" placeholder="例如：晨跑 30 分钟" maxlength="20">
+    <label>图标颜色</label>
+    <div class="color-pick" id="colorPick">
+      <div class="dot sel" style="background:var(--accent2)" data-color="#00d4aa">✅</div>
+      <div class="dot" style="background:var(--accent)" data-color="#ff6b35">🔥</div>
+      <div class="dot" style="background:var(--accent3)" data-color="#6c5ce7">💜</div>
+      <div class="dot" style="background:#ffd700" data-color="#ffd700">⭐</div>
+      <div class="dot" style="background:#ff6b9d" data-color="#ff6b9d">💖</div>
+      <div class="dot" style="background:#00b894" data-color="#00b894">🌿</div>
+      <div class="dot" style="background:#54a0ff" data-color="#54a0ff">💧</div>
+      <div class="dot" style="background:#a29bfe" data-color="#a29bfe">🦄</div>
+    </div>
+    <label>图标</label>
+    <input id="habitIcon" type="text" placeholder="输入emoji，如 🏃" maxlength="2" value="🎯">
+    <div class="btn-row">
+      <button class="btn btn-cancel" onclick="hideAddModal()">取消</button>
+      <button class="btn btn-primary" id="saveHabitBtn" onclick="saveHabit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<div class="bottom-nav">
+  <button class="nav-item active" data-tab="today" onclick="switchTab('today')">
+    <span class="icon">📋</span><span>今日</span>
+  </button>
+  <button class="nav-item" data-tab="calendar" onclick="switchTab('calendar')">
+    <span class="icon">📅</span><span>日历</span>
+  </button>
+  <button class="nav-item" data-tab="stats" onclick="switchTab('stats')">
+    <span class="icon">📊</span><span>统计</span>
+  </button>
+  <button class="nav-item" data-tab="timer" onclick="switchTab('timer')">
+    <span class="icon">⏱</span><span>番茄钟</span>
+  </button>
+</div>
+
+<script>
+// ==================== DATA STORE ====================
+const STORE_KEY = 'xiaodaka_habits';
+const RECORDS_KEY = 'xiaodaka_records';
+
+function loadHabits(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || [] }
+  catch(e){ return [] }
+}
+function saveHabits(habits){
+  localStorage.setItem(STORE_KEY, JSON.stringify(habits))
+}
+function loadRecords(){
+  try{ return JSON.parse(localStorage.getItem(RECORDS_KEY)) || {} }
+  catch(e){ return {} }
+}
+function saveRecords(records){
+  localStorage.setItem(RECORDS_KEY, JSON.stringify(records))
+}
+
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+let habits = loadHabits();
+let records = loadRecords();
+let editingId = null;
+
+// ==================== RENDER TODAY ====================
+function renderToday(){
+  const list = document.getElementById('habitList');
+  const empty = document.getElementById('emptyToday');
+  const today = todayStr();
+
+  if(habits.length === 0){
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    document.getElementById('progressPct').textContent = '0%';
+    document.getElementById('progressCircle').setAttribute('stroke-dashoffset','188.5');
+    document.getElementById('progressTitle').textContent = '添加第一个习惯';
+    document.getElementById('progressSub').textContent = '';
+    document.getElementById('bestStreak').textContent = '🔥 最长连续 0 天';
+    return;
+  }
+
+  empty.style.display = 'none';
+  let doneCount = 0;
+  let html = '';
+
+  habits.forEach((h,i) => {
+    const done = records[h.id] && records[h.id][today];
+    if(done) doneCount++;
+    const streak = calcStreak(h.id);
+    html += `<div class="habit-card ${done?'done':''}" onclick="toggleHabit('${h.id}')" id="card-${h.id}">
+      <div class="check">✓</div>
+      <div class="info">
+        <div class="name">${h.icon || '🎯'} ${h.name}</div>
+        <div class="meta">${done?'✅ 今日已完成':'⏳ 点击打卡'}</div>
+      </div>
+      <div class="right">
+        <span class="day-streak">🔥 ${streak}天</span>
+        <button class="trash" onclick="event.stopPropagation();deleteHabit('${h.id}')">🗑</button>
+      </div>
+    </div>`;
+  });
+
+  list.innerHTML = html;
+
+  // Progress
+  const pct = habits.length > 0 ? Math.round(doneCount / habits.length * 100) : 0;
+  const circumference = 188.5;
+  const offset = circumference - (pct / 100) * circumference;
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('progressCircle').setAttribute('stroke-dashoffset', offset);
+
+  if(pct === 100){
+    document.getElementById('progressTitle').textContent = '🎉 全部完成！';
+    document.getElementById('progressSub').textContent = '今天太棒了';
+  }else if(doneCount > 0){
+    document.getElementById('progressTitle').textContent = `已完成 ${doneCount}/${habits.length}`;
+    document.getElementById('progressSub').textContent = '继续加油 💪';
+  }else{
+    document.getElementById('progressTitle').textContent = '今天还没打卡';
+    document.getElementById('progressSub').textContent = '从第一个开始吧';
+  }
+
+  // Best streak
+  let bestStr = 0;
+  habits.forEach(h => { const s = bestStreakEver(h.id); if(s > bestStr) bestStr = s; });
+  document.getElementById('bestStreak').textContent = '🔥 最长连续 ' + bestStr + ' 天';
+}
+
+function toggleHabit(id){
+  const today = todayStr();
+  if(!records[id]) records[id] = {};
+  if(records[id][today]){
+    delete records[id][today];
+  }else{
+    records[id][today] = true;
+    // Animate
+    const card = document.getElementById('card-'+id);
+    if(card){ card.classList.add('pop-in'); setTimeout(()=>card.classList.remove('pop-in'),500) }
+  }
+  saveRecords(records);
+  renderToday();
+  renderStats();
+  showToast(records[id][today] ? '✅ 打卡成功！' : '已取消打卡');
+}
+
+function deleteHabit(id){
+  if(!confirm('确定删除这个习惯吗？历史记录会保留。')) return;
+  habits = habits.filter(h => h.id !== id);
+  saveHabits(habits);
+  renderToday();
+  renderCalendar();
+  renderStats();
+  showToast('已删除','warning');
+}
+
+// ==================== STREAK CALC ====================
+function calcStreak(habitId){
+  let streak = 0;
+  const d = new Date();
+  for(let i=0;i<365;i++){
+    const check = new Date(d);
+    check.setDate(d.getDate() - i);
+    const ds = `${check.getFullYear()}-${String(check.getMonth()+1).padStart(2,'0')}-${String(check.getDate()).padStart(2,'0')}`;
+    if(records[habitId] && records[habitId][ds]){ streak++; }
+    else{ break; }
+  }
+  return streak;
+}
+
+function bestStreakEver(habitId){
+  let best = 0, current = 0;
+  const start = new Date();
+  start.setFullYear(start.getFullYear() - 1);
+  for(let d = new Date(start); d <= new Date(); d.setDate(d.getDate()+1)){
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(records[habitId] && records[habitId][ds]){ current++; if(current>best) best=current; }
+    else{ current = 0; }
+  }
+  return best;
+}
+
+// ==================== ADD / EDIT MODAL ====================
+function showAddModal(){
+  editingId = null;
+  document.getElementById('modalTitle').textContent = '添加习惯';
+  document.getElementById('habitName').value = '';
+  document.getElementById('habitIcon').value = '🎯';
+  document.getElementById('saveHabitBtn').textContent = '添加';
+  resetColorPick('#00d4aa');
+  document.getElementById('addModal').classList.add('show');
+  setTimeout(()=>document.getElementById('habitName').focus(),400);
+}
+
+function hideAddModal(){
+  document.getElementById('addModal').classList.remove('show');
+  editingId = null;
+}
+
+document.getElementById('addModal').addEventListener('click',function(e){
+  if(e.target === this) hideAddModal();
+});
+
+// Color pick
+document.getElementById('colorPick').addEventListener('click',function(e){
+  const dot = e.target.closest('.dot');
+  if(!dot) return;
+  resetColorPick(dot.dataset.color);
+});
+
+function resetColorPick(color){
+  document.querySelectorAll('#colorPick .dot').forEach(d => {
+    d.classList.toggle('sel', d.dataset.color === color);
+  });
+  document.getElementById('colorPick').dataset.selected = color;
+}
+
+function saveHabit(){
+  const name = document.getElementById('habitName').value.trim();
+  const icon = document.getElementById('habitIcon').value.trim() || '🎯';
+  const color = document.getElementById('colorPick').dataset.selected || '#00d4aa';
+
+  if(!name){ showToast('请输入习惯名称','warning'); return; }
+
+  if(editingId){
+    const idx = habits.findIndex(h => h.id === editingId);
+    if(idx >= 0){ habits[idx].name = name; habits[idx].icon = icon; habits[idx].color = color; }
+  }else{
+    habits.push({ id: 'h_' + Date.now(), name, icon, color, createdAt: todayStr() });
+  }
+
+  saveHabits(habits);
+  hideAddModal();
+  renderToday();
+  renderCalendar();
+  renderStats();
+  showToast(editingId ? '已更新' : '✅ 习惯添加成功！');
+  editingId = null;
+}
+
+// ==================== CALENDAR ====================
+let calYear, calMonth;
+
+function renderCalendar(){
+  const now = new Date();
+  if(!calYear){ calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  document.getElementById('monthLabel').textContent = `${calYear}年${calMonth+1}月`;
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const today = todayStr();
+  const grid = document.getElementById('calendarGrid');
+  let html = '';
+
+  for(let i=0;i<firstDay;i++){
+    html += '<div class="day other-month"></div>';
+  }
+
+  for(let d=1;d<=daysInMonth;d++){
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === today;
+    const isFuture = new Date(ds) > new Date(today);
+
+    let doneCount = 0;
+    habits.forEach(h => { if(records[h.id] && records[h.id][ds]) doneCount++; });
+
+    let cls = 'day';
+    if(isToday) cls += ' today';
+    if(isFuture) cls += ' future';
+    else if(doneCount > 0) cls += ' done';
+    else if(habits.length > 0) cls += ' miss';
+
+    const opacity = doneCount > 0 ? Math.min(0.3 + doneCount / habits.length * 0.7, 1) : 0;
+    html += `<div class="${cls}" style="${doneCount>0&&!isFuture?`background:rgba(0,212,170,${opacity.toFixed(1)})`:''}">${d}</div>`;
+  }
+
+  grid.innerHTML = html;
+
+  // Habit filter buttons
+  const filterDiv = document.getElementById('habitFilterBtns');
+  filterDiv.innerHTML = habits.map(h =>
+    `<button style="padding:6px 14px;border-radius:16px;border:1.5px solid var(--border);background:transparent;color:${h.color};font-size:12px;font-weight:600;cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='${h.color}22'" onmouseout="this.style.background='transparent'">${h.icon} ${h.name}</button>`
+  ).join('');
+}
+
+function prevMonth(){
+  if(calMonth === 0){ calYear--; calMonth = 11; }
+  else{ calMonth--; }
+  renderCalendar();
+}
+
+function nextMonth(){
+  if(calMonth === 11){ calYear++; calMonth = 0; }
+  else{ calMonth++; }
+  renderCalendar();
+}
+
+// ==================== STATS ====================
+function renderStats(){
+  const today = todayStr();
+  let total = 0, doneToday = 0, bestStr = 0;
+
+  habits.forEach(h => {
+    // count total records
+    if(records[h.id]){
+      total += Object.keys(records[h.id]).length;
+    }
+    if(records[h.id] && records[h.id][today]) doneToday++;
+    const bs = bestStreakEver(h.id);
+    if(bs > bestStr) bestStr = bs;
+  });
+
+  const currentStreak = habits.length > 0 ? Math.max(...habits.map(h => calcStreak(h.id))) : 0;
+  const rate = habits.length > 0 ? Math.round(doneToday / habits.length * 100) : 0;
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statStreak').textContent = currentStreak;
+  document.getElementById('statRate').textContent = rate + '%';
+  document.getElementById('statBest').textContent = bestStr;
+
+  // Breakdown
+  const breakdown = document.getElementById('habitBreakdown');
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+
+  breakdown.innerHTML = habits.map(h => {
+    let count = 0;
+    for(let d=1;d<=daysInMonth;d++){
+      const ds = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      if(records[h.id] && records[h.id][ds]) count++;
+    }
+    const pct = Math.round(count / daysInMonth * 100);
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span style="font-size:16px">${h.icon}</span>
+      <span style="flex:1;font-size:14px">${h.name}</span>
+      <span style="font-size:13px;color:var(--sub)">${count}/${daysInMonth}天</span>
+      <div style="width:60px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="height:100%;background:${h.color};border-radius:3px;width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="text-align:center;color:var(--sub);padding:20px">暂无数据</div>';
+}
+
+// ==================== TIMER ====================
+let timerMinutes = 25;
+let timerSeconds = 0;
+let timerRunning = false;
+let timerInterval = null;
+let timerTotal = 25 * 60;
+
+function updateTimerDisplay(){
+  const m = String(timerMinutes).padStart(2,'0');
+  const s = String(timerSeconds).padStart(2,'0');
+  document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+  const elapsed = timerTotal - (timerMinutes * 60 + timerSeconds);
+  const pct = elapsed / timerTotal;
+  const circumference = 553;
+  document.getElementById('timerCircle').setAttribute('stroke-dashoffset', circumference * (1-pct));
+}
+
+function toggleTimer(){
+  if(timerRunning){
+    clearInterval(timerInterval);
+    timerRunning = false;
+    document.getElementById('timerPlayBtn').textContent = '▶';
+    document.getElementById('timerLabel').textContent = '⏸ 暂停';
+  }else{
+    if(timerMinutes === 0 && timerSeconds === 0){ resetTimer(); return; }
+    timerRunning = true;
+    document.getElementById('timerPlayBtn').textContent = '⏸';
+    const label = document.querySelector('.timer-presets button.active');
+    document.getElementById('timerLabel').textContent = label ? label.dataset.label : '🍅 专注';
+    timerInterval = setInterval(()=>{
+      if(timerSeconds === 0){
+        if(timerMinutes === 0){
+          clearInterval(timerInterval);
+          timerRunning = false;
+          document.getElementById('timerPlayBtn').textContent = '▶';
+          document.getElementById('timerLabel').textContent = '🎉 完成！';
+          showToast('⏰ 时间到！休息一下吧');
+          if(Notification.permission === 'granted'){
+            new Notification('小打卡',{body:'⏰ 番茄钟时间到！休息一下吧',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🍅</text></svg>'});
+          }
+          return;
+        }
+        timerMinutes--;
+        timerSeconds = 59;
+      }else{
+        timerSeconds--;
+      }
+      updateTimerDisplay();
+    },1000);
+  }
+}
+
+function resetTimer(){
+  clearInterval(timerInterval);
+  timerRunning = false;
+  const activeBtn = document.querySelector('.timer-presets button.active');
+  timerMinutes = activeBtn ? parseInt(activeBtn.dataset.min) : 25;
+  timerSeconds = 0;
+  timerTotal = timerMinutes * 60;
+  document.getElementById('timerPlayBtn').textContent = '▶';
+  document.getElementById('timerLabel').textContent = activeBtn ? activeBtn.dataset.label : '🍅 专注';
+  updateTimerDisplay();
+}
+
+function skipTimer(){
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerMinutes = 0;
+  timerSeconds = 0;
+  document.getElementById('timerPlayBtn').textContent = '▶';
+  document.getElementById('timerLabel').textContent = '⏭ 跳过';
+  updateTimerDisplay();
+}
+
+function setPreset(min,label,btn){
+  document.querySelectorAll('.timer-presets button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerMinutes = min;
+  timerSeconds = 0;
+  timerTotal = min * 60;
+  document.getElementById('timerPlayBtn').textContent = '▶';
+  document.getElementById('timerLabel').textContent = label;
+  updateTimerDisplay();
+}
+
+// ==================== TABS ====================
+function switchTab(tab){
+  document.querySelectorAll('.main').forEach(m=>m.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  document.querySelector(`.nav-item[data-tab="${tab}"]`).classList.add('active');
+  if(tab==='calendar') renderCalendar();
+  if(tab==='stats') renderStats();
+}
+
+// ==================== TOAST ====================
+function showToast(msg,type){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + (type||'');
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>toast.classList.remove('show'),2000);
+}
+
+// ==================== INIT ====================
+function updateClock(){
+  const now = new Date();
+  document.getElementById('timeNow').textContent = now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  const opts = {month:'long',day:'numeric',weekday:'short'};
+  document.getElementById('dateNow').textContent = now.toLocaleDateString('zh-CN',opts);
+}
+updateClock();
+setInterval(updateClock,30000);
+
+renderToday();
+renderCalendar();
+renderStats();
+updateTimerDisplay();
+
+// Request notification permission
+if('Notification' in window && Notification.permission === 'default'){
+  setTimeout(()=>Notification.requestPermission(),3000);
+}
+
+// Service Worker for PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
