@@ -2,7 +2,7 @@
   "name": "小打卡 - 极简习惯追踪",
   "short_name": "小打卡",
   "description": "极简习惯追踪与番茄钟，帮你养成好习惯",
-  "start_url": "/",
+  "start_url": "/xiaodaka/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b0b0f",
